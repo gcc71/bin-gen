@@ -1,5 +1,33 @@
-import random, string, os, sys, shutil, argparse
-import mt_util as mt
+import random, string, os, sys, shutil, argparse, pathlib
+from tqdm import tqdm
+
+# this class is used to store file attributs
+class dataFile:
+    def __init__(self, path, size, file_name, file_ext):
+        self.path = path
+        self.size = size
+        self.file_name = file_name
+        self.file_ext = file_ext
+    def to_dict(self):
+        return{
+            'path': self.path,
+            'size': self.size,
+            'file_name': self.file_name,
+            'file_ext': self.file_ext
+
+        }
+
+# this function uses the dataFile class to retrieve all files from a given directory
+def get_files(top_dir):
+    dataFiles = []
+    for currentpath, folders, files in os.walk(top_dir):
+        for file in files:
+            file_path = os.path.join(currentpath, file)
+            file_name = pathlib.PureWindowsPath(file_path).name
+            file_ext = pathlib.PureWindowsPath(file_path).suffix
+            df = dataFile(file_path, os.path.getsize(file_path), file_name, file_ext)
+            dataFiles.append(df)
+    return dataFiles
 
 #this function generates a random word of a given length
 def randomword(length):
@@ -98,15 +126,35 @@ def gen_ran_src_files(count, out_directory):
 def compile_all(src_directory, out_directory):
     # make out dir if not exist
     os.makedirs(out_directory, exist_ok = True)
-
-    for files in mt.get_files(src_directory):
+    # TODO: add TQDM here
+    for files in tqdm(get_files(src_directory)):
         out_file_name = out_directory + '/' + files.file_name.replace('.cpp', '.exe')
         run_gpp(files.path, out_file_name)
 
+# make random exe files
 def make_bins(count, out_directory):
     gen_ran_src_files(count, 'tmp_src')
     compile_all('tmp_src', out_directory)
     shutil.rmtree('tmp_src')
+
+# This function will execute all executables in a specified directory and capture exit codes
+def test_execs(directory, verbose):
+    errors = 0 
+
+    for f in get_files(directory):
+        cmd_line = f.path
+
+        if not verbose:
+            ec = os.system(cmd_line + "> NUL")
+            errors += ec            
+        else:
+            print("testing: " + cmd_line)
+            ec = os.system(cmd_line)
+            errors += ec
+            print("Exit Code: " + str(ec))
+
+    print("test complete with " + str(errors) + " errors")
+     
 
 
 # def compile_loop():
@@ -116,9 +164,9 @@ def make_bins(count, out_directory):
 #             print(files.path)
         # run_gpp('in_bins/hello_bin_gen.cpp', out_file_name)
 
+# this function run the g++ compiler
 def run_gpp(in_file_name, out_file_name):
     cmd_line = "g++ " + in_file_name + " -o " + out_file_name
-    print(cmd_line)
     os.system(cmd_line)
 
 # begin main
@@ -142,8 +190,12 @@ if __name__ == "__main__":
     parser_mk_bins = subparsers.add_parser('make-bins', help='Generates bin files')
     parser_mk_bins.add_argument('-out', '--outdir', type=str, help='The out file directory', required = True)
     parser_mk_bins.add_argument('-c', '--count', type=int, help='The count of bin files to be generated', required = True)
+    
+    # add test executables
+    parser_test_exec = subparsers.add_parser('test-execs', help='Runs all executables in directory')
+    parser_test_exec.add_argument('-d', '--directory', type=str, help='The target directory', required = True)
+    parser_test_exec.add_argument('-v', '--verbose', type=int, help='The target directory', required = False)
 
-      
     # parse args and handle
     args = parser.parse_args()
 
@@ -159,6 +211,10 @@ if __name__ == "__main__":
     
     if args.command_name == 'make-bins':
         make_bins(args.count, args.outdir)
+
+    if args.command_name == 'test-execs':
+        test_execs(args.directory, args.verbose)
+
 
 
 
