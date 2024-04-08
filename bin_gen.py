@@ -1,4 +1,4 @@
-import random, string, os, sys, shutil, argparse, pathlib
+import random, string, os, sys, shutil, argparse, pathlib, json
 from tqdm import tqdm
 
 # this class is used to store file attributs
@@ -56,18 +56,24 @@ def gen_ran_int_var_stat(min, max):
 # The input file contains valid include statements for the machine where this code runs
 def gen_ran_include_stat(min, max):
     statements = []
+    ran_includes = []
+    
+    # read in config
+    json_file = 'config.json'
+    with open(json_file) as json_data:
+        data = json.load(json_data)
+    
     # always include these includes
-    statements.append('#include <iostream>')
-    statements.append('#include <vector>')
-    statements.append('#include <string>')
-
-    # open valid includes file for random selections
-    with open('valid_mageo_includes.txt') as f:
-        content = f.readlines()
-        content = [x.strip() for x in content]
-
+    for i in data['always_includes']:
+        statements.append(i)
+    
+    # random include these includes
+    for i in data['ran_includes']:
+        ran_includes.append(i)
+  
     for x in range(0,random.randint(min, max)):
-        stat = content[random.randint(0, len(content) - 1)]#debug here
+        stat = ran_includes[random.randint(0, len(ran_includes) - 1)]
+       
         if stat not in statements:
             statements.append(stat)
     
@@ -115,18 +121,14 @@ def gen_ran_src_files(count, out_directory):
         with open(file_name, 'a') as the_file:
             for sl in src_lines:
                 the_file.write(sl + '\n')
-        
-        # test prints        
-        # for sl in src_lines:
-        #     print(sl)
-        
+         
         # clear the list
         src_lines.clear()
 
 def compile_all(src_directory, out_directory):
     # make out dir if not exist
     os.makedirs(out_directory, exist_ok = True)
-    # TODO: add TQDM here
+   
     for files in tqdm(get_files(src_directory)):
         out_file_name = out_directory + '/' + files.file_name.replace('.cpp', '.exe')
         run_gpp(files.path, out_file_name)
@@ -139,31 +141,23 @@ def make_bins(count, out_directory):
 
 # This function will execute all executables in a specified directory and capture exit codes
 def test_execs(directory, verbose):
-    errors = 0 
+    errors = 0
 
-    for f in get_files(directory):
-        cmd_line = f.path
-
-        if not verbose:
+    if not verbose:
+        for f in tqdm(get_files(directory)):
+            cmd_line = f.path
             ec = os.system(cmd_line + "> NUL")
-            errors += ec            
-        else:
+            errors += ec
+    else:# verbose
+        for f in get_files(directory):
+            cmd_line = f.path
             print("testing: " + cmd_line)
             ec = os.system(cmd_line)
             errors += ec
-            print("Exit Code: " + str(ec))
+            print("Exit Code: " + str(ec)) 
 
     print("test complete with " + str(errors) + " errors")
-     
-
-
-# def compile_loop():
-#     for x in range(1,5):
-#         out_file_name = 'out_bins/test' + str(x) + '.exe'
-#         for files in mt.get_files('in_src'):
-#             print(files.path)
-        # run_gpp('in_bins/hello_bin_gen.cpp', out_file_name)
-
+ 
 # this function run the g++ compiler
 def run_gpp(in_file_name, out_file_name):
     cmd_line = "g++ " + in_file_name + " -o " + out_file_name
