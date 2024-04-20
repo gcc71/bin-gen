@@ -163,6 +163,23 @@ def run_gpp(in_file_name, out_file_name):
     cmd_line = "g++ " + in_file_name + " -o " + out_file_name
     os.system(cmd_line)
 
+# this function reads the upx report and display count
+def read_upx_reprot(file_path):
+    dll_list = []
+    #make sure to open file in notepad and save it as UTF-8
+    f = open(file_path, "r")
+    for l in f:
+        if 'win64/pe' in l:
+            ss = l.split('win64/pe')
+            file_name = ss[1].rstrip().replace(' ', '')
+            dll_list.append(file_name)
+        if 'win32/pe' in l:
+            ss = l.split('win32/pe')
+            file_name = ss[1].rstrip().replace(' ', '')
+            dll_list.append(file_name)
+    print("make sure to open file in notepad and save it as UTF-8 before trying to read it")
+    print(len(dll_list), "compressed PE files...")
+
 # begin main
 if __name__ == "__main__":
 
@@ -189,6 +206,14 @@ if __name__ == "__main__":
     parser_test_exec = subparsers.add_parser('test-execs', help='Runs all executables in directory')
     parser_test_exec.add_argument('-d', '--directory', type=str, help='The target directory', required = True)
     parser_test_exec.add_argument('-v', '--verbose', type=int, help='The target directory', required = False)
+    
+    # add read upx report
+    parser_test_exec = subparsers.add_parser('read-upx-report', help='Reads upx report file')
+    parser_test_exec.add_argument('-f', '--file', type=str, help='The file path', required = True)
+    
+
+
+
 
     # parse args and handle
     args = parser.parse_args()
@@ -208,6 +233,9 @@ if __name__ == "__main__":
 
     if args.command_name == 'test-execs':
         test_execs(args.directory, args.verbose)
+    
+    if args.command_name == 'read-upx-report':
+        read_upx_reprot(args.file)
 
 
 
